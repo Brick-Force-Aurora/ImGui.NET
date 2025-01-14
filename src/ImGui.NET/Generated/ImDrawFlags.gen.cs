@@ -1,6 +1,5 @@
 namespace ImGuiNET
 {
-    [System.Flags]
     public enum ImDrawFlags
     {
         None = 0,

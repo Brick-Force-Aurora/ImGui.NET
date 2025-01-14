@@ -1,4 +1,6 @@
-﻿using System.Text;
+﻿using System.Runtime.InteropServices;
+using System.Text;
+using System;
 
 namespace ImGuiNET
 {
@@ -21,7 +23,8 @@ namespace ImGuiNET
                 ptr += 1;
             }
 
-            return Encoding.ASCII.GetString(Data, length);
+            return Marshal.PtrToStringAnsi((IntPtr)Data);
+            //return Encoding.ASCII.GetString(Data, 0, length);
         }
 
         public static implicit operator string(NullTerminatedString nts) => nts.ToString();

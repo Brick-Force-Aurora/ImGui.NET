@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace ImGuiNET
@@ -62,7 +63,8 @@ namespace ImGuiNET
     {
         public static unsafe string GetStringASCII(this RangeAccessor<byte> stringAccessor)
         {
-            return Encoding.ASCII.GetString((byte*)stringAccessor.Data, stringAccessor.Count);
+            return Marshal.PtrToStringAnsi((IntPtr)stringAccessor.Data);
+            //return Encoding.ASCII.GetString((byte*)stringAccessor.Data, stringAccessor.Count);
         }
     }
 }

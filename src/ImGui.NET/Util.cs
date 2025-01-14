@@ -16,7 +16,8 @@ namespace ImGuiNET
                 characters++;
             }
 
-            return Encoding.UTF8.GetString(ptr, characters);
+            return Marshal.PtrToStringAnsi((IntPtr)ptr);
+            //return Encoding.UTF8.GetString(ptr, characters);
         }
 
         internal static bool AreStringsEqual(byte* a, int aLength, byte* b)
@@ -45,7 +46,7 @@ namespace ImGuiNET
             {
                 throw new ArgumentOutOfRangeException();
             }
-            if(s.Length == 0) return 0;
+            if (s.Length == 0) return 0;
 
             fixed (char* utf16Ptr = s)
             {
@@ -70,10 +71,17 @@ namespace ImGuiNET
 
         internal static int GetUtf8(string s, byte* utf8Bytes, int utf8ByteCount)
         {
-            fixed (char* utf16Ptr = s)
+            var chars = Encoding.UTF8.GetBytes(s);
+            var length = Math.Min(chars.Length, utf8ByteCount);
+            for (int i = 0; i < utf8ByteCount + 1; i++)
+                utf8Bytes[i] = 0;
+            Marshal.Copy(chars, 0, (IntPtr)utf8Bytes, length);
+            return length;
+
+            /*fixed (char* utf16Ptr = s)
             {
                 return Encoding.UTF8.GetBytes(utf16Ptr, s.Length, utf8Bytes, utf8ByteCount);
-            }
+            }*/
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_1_OR_GREATER
@@ -88,10 +96,15 @@ namespace ImGuiNET
             }
             if (s.Length == 0) return 0;
 
-            fixed (char* utf16Ptr = s)
+            var chars = Encoding.UTF8.GetBytes(s);
+            length = Math.Min(chars.Length, length);
+            Marshal.Copy(chars, 0, (IntPtr)utf8Bytes, length);
+            return length;
+
+            /*fixed (char* utf16Ptr = s)
             {
                 return Encoding.UTF8.GetBytes(utf16Ptr + start, length, utf8Bytes, utf8ByteCount);
-            }
+            }*/
         }
     }
 }

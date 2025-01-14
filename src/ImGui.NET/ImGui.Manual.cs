@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 namespace ImGuiNET
 {
@@ -55,11 +57,26 @@ namespace ImGuiNET
             }
             Util.GetUtf8(label, utf8LabelBytes, utf8LabelByteCount);
 
-            bool ret;
-            fixed (byte* bufPtr = buf)
+            bool ret = false;
+
+            byte* bufPtr = (byte*)Marshal.AllocHGlobal((int)buf_size + 1);
+            for (int i = 0; i < buf_size + 1; i++)
+                bufPtr[i] = 0;
+
+            try
             {
+                Marshal.Copy(buf, 0, (IntPtr)bufPtr, (int)buf_size);
                 ret = ImGuiNative.igInputText(utf8LabelBytes, bufPtr, buf_size, flags, callback, user_data.ToPointer()) != 0;
             }
+            finally
+            {
+                Marshal.FreeHGlobal((IntPtr)bufPtr);
+            }
+
+            /*fixed (byte* bufPtr = buf)
+            {
+                ret = ImGuiNative.igInputText(utf8LabelBytes, bufPtr, buf_size, flags, callback, user_data.ToPointer()) != 0;
+            }*/
 
             if (utf8LabelByteCount > Util.StackAllocationSizeLimit)
             {
@@ -276,83 +293,52 @@ namespace ImGuiNET
             ImGuiInputTextCallback callback,
             IntPtr user_data)
         {
-            int utf8LabelByteCount = Encoding.UTF8.GetByteCount(label);
-            byte* utf8LabelBytes;
-            if (utf8LabelByteCount > Util.StackAllocationSizeLimit)
-            {
+                int utf8LabelByteCount = Encoding.UTF8.GetByteCount(label);
+                byte* utf8LabelBytes;
                 utf8LabelBytes = Util.Allocate(utf8LabelByteCount + 1);
-            }
-            else
-            {
-                byte* stackPtr = stackalloc byte[utf8LabelByteCount + 1];
-                utf8LabelBytes = stackPtr;
-            }
-            Util.GetUtf8(label, utf8LabelBytes, utf8LabelByteCount);
 
-            int utf8HintByteCount = Encoding.UTF8.GetByteCount(hint);
-            byte* utf8HintBytes;
-            if (utf8HintByteCount > Util.StackAllocationSizeLimit)
-            {
+                Util.GetUtf8(label, utf8LabelBytes, utf8LabelByteCount);
+
+                int utf8HintByteCount = Encoding.UTF8.GetByteCount(hint);
+                byte* utf8HintBytes;
                 utf8HintBytes = Util.Allocate(utf8HintByteCount + 1);
-            }
-            else
-            {
-                byte* stackPtr = stackalloc byte[utf8HintByteCount + 1];
-                utf8HintBytes = stackPtr;
-            }
-            Util.GetUtf8(hint, utf8HintBytes, utf8HintByteCount);
+                Util.GetUtf8(hint, utf8HintBytes, utf8HintByteCount);
 
-            int utf8InputByteCount = Encoding.UTF8.GetByteCount(input);
-            int inputBufSize = Math.Max((int)maxLength + 1, utf8InputByteCount + 1);
+                int utf8InputByteCount = Encoding.UTF8.GetByteCount(input);
+                int inputBufSize = Math.Max((int)maxLength + 1, utf8InputByteCount + 1);
 
-            byte* utf8InputBytes;
-            byte* originalUtf8InputBytes;
-            if (inputBufSize > Util.StackAllocationSizeLimit)
-            {
+                byte* utf8InputBytes;
+                byte* originalUtf8InputBytes;
                 utf8InputBytes = Util.Allocate(inputBufSize);
                 originalUtf8InputBytes = Util.Allocate(inputBufSize);
-            }
-            else
-            {
-                byte* inputStackBytes = stackalloc byte[inputBufSize];
-                utf8InputBytes = inputStackBytes;
-                byte* originalInputStackBytes = stackalloc byte[inputBufSize];
-                originalUtf8InputBytes = originalInputStackBytes;
-            }
-            Util.GetUtf8(input, utf8InputBytes, inputBufSize);
-            uint clearBytesCount = (uint)(inputBufSize - utf8InputByteCount);
-            Unsafe.InitBlockUnaligned(utf8InputBytes + utf8InputByteCount, 0, clearBytesCount);
-            Unsafe.CopyBlock(originalUtf8InputBytes, utf8InputBytes, (uint)inputBufSize);
+                Util.GetUtf8(input, utf8InputBytes, inputBufSize);
+                uint clearBytesCount = (uint)(inputBufSize - utf8InputByteCount);
+                Unsafe.InitBlockUnaligned(utf8InputBytes + utf8InputByteCount, 0, clearBytesCount);
+                Unsafe.CopyBlock(originalUtf8InputBytes, utf8InputBytes, (uint)inputBufSize);
 
-            byte result = ImGuiNative.igInputTextWithHint(
-                utf8LabelBytes,
-                utf8HintBytes,
-                utf8InputBytes,
-                (uint)inputBufSize,
-                flags,
-                callback,
-                user_data.ToPointer());
-            if (!Util.AreStringsEqual(originalUtf8InputBytes, inputBufSize, utf8InputBytes))
-            {
-                input = Util.StringFromPtr(utf8InputBytes);
-            }
+                byte result = ImGuiNative.igInputTextWithHint(
+                    utf8LabelBytes,
+                    utf8HintBytes,
+                    utf8InputBytes,
+                    (uint)inputBufSize,
+                    flags,
+                    callback,
+                    user_data.ToPointer());
 
-            if (utf8LabelByteCount > Util.StackAllocationSizeLimit)
-            {
+                if (!Util.AreStringsEqual(originalUtf8InputBytes, inputBufSize, utf8InputBytes))
+                {
+                    input = Util.StringFromPtr(utf8InputBytes);
+                }
+
                 Util.Free(utf8LabelBytes);
-            }
-            if (utf8HintByteCount > Util.StackAllocationSizeLimit)
-            {
+
                 Util.Free(utf8HintBytes);
-            }
-            if (inputBufSize > Util.StackAllocationSizeLimit)
-            {
+
                 Util.Free(utf8InputBytes);
                 Util.Free(originalUtf8InputBytes);
-            }
 
-            return result != 0;
-        }
+                return result != 0;
+            }
 
         public static Vector2 CalcTextSize(string text, int start)
             => CalcTextSizeImpl(text, start);
@@ -505,6 +491,101 @@ namespace ImGuiNET
             }
 
             return ret != 0;
+        }
+
+        public static bool ImGui_ImplDX11_CreateDeviceObjects()
+        {
+            return ImGuiNative.ImGui_ImplDX11_CreateDeviceObjects() != 0;
+        }
+
+        public static void ImGui_ImplDX11_InvalidateDeviceObjects()
+        {
+            ImGuiNative.ImGui_ImplDX11_InvalidateDeviceObjects();
+        }
+
+        public static void ImGui_ImplDX11_NewFrame()
+        {
+            ImGuiNative.ImGui_ImplDX11_NewFrame();
+        }
+
+        public unsafe static void ImGui_ImplDX11_RenderDrawData(ImDrawDataPtr draw_data)
+        {
+            ImGuiNative.ImGui_ImplDX11_RenderDrawData(draw_data.NativePtr);
+        }
+
+        public static void ImGui_ImplDX11_Shutdown()
+        {
+            ImGuiNative.ImGui_ImplDX11_Shutdown();
+        }
+
+        public static bool ImGui_ImplDX9_CreateDeviceObjects()
+        {
+            return ImGuiNative.ImGui_ImplDX9_CreateDeviceObjects() != 0;
+        }
+
+        public static void ImGui_ImplDX9_InvalidateDeviceObjects()
+        {
+            ImGuiNative.ImGui_ImplDX9_InvalidateDeviceObjects();
+        }
+
+        public unsafe static void ImGui_ImplDX9_Init(IntPtr device)
+        {
+            ImGuiNative.ImGui_ImplDX9_Init(device.ToPointer());
+        }
+
+        public static void ImGui_ImplDX9_NewFrame()
+        {
+            ImGuiNative.ImGui_ImplDX9_NewFrame();
+        }
+
+        public unsafe static void ImGui_ImplDX9_RenderDrawData(ImDrawDataPtr draw_data)
+        {
+            ImGuiNative.ImGui_ImplDX9_RenderDrawData(draw_data.NativePtr);
+        }
+
+        public static void ImGui_ImplDX9_Shutdown()
+        {
+            ImGuiNative.ImGui_ImplDX9_Shutdown();
+        }
+
+        public static void ImGui_ImplWin32_EnableDpiAwareness()
+        {
+            ImGuiNative.ImGui_ImplWin32_EnableDpiAwareness();
+        }
+
+        public unsafe static float ImGui_ImplWin32_GetDpiScaleForHwnd(IntPtr hwnd)
+        {
+            return ImGuiNative.ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd.ToPointer());
+        }
+
+        public unsafe static float ImGui_ImplWin32_GetDpiScaleForMonitor(IntPtr monitor)
+        {
+            return ImGuiNative.ImGui_ImplWin32_GetDpiScaleForMonitor(monitor.ToPointer());
+        }
+
+        public unsafe static bool ImGui_ImplWin32_Init(IntPtr hwnd)
+        {
+            return ImGuiNative.ImGui_ImplWin32_Init(hwnd.ToPointer()) != 0;
+        }
+
+        public static void ImGui_ImplWin32_NewFrame()
+        {
+            ImGuiNative.ImGui_ImplWin32_NewFrame();
+        }
+
+        public static void ImGui_ImplWin32_Shutdown()
+        {
+            ImGuiNative.ImGui_ImplWin32_Shutdown();
+        }
+
+        public static int ImGui_ImplWin32_WndProcHandler(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+        {
+            return ImGuiNative.ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
+        }
+
+        public static void EndColumns()
+        {
+            ImGuiNative.igEndColumns();
         }
     }
 }
