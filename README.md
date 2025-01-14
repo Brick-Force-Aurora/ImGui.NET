@@ -1,3 +1,8 @@
+# Description
+ImGui.NET library for use in the Brick-Force Aurora project. Specifically targets .NET Framework 3.5 and includes various changes to make this possible. Not all parts of the code have been tested and it may be unstable.
+
+Includes DX9, DX11 and Win32 ImGui backend imports.
+
 # ImGui.NET
 
 This is a .NET wrapper for the immediate mode GUI library, Dear ImGui (https://github.com/ocornut/imgui). ImGui.NET lets you build graphical interfaces using a simple immediate-mode style. ImGui.NET is a .NET Standard library, and can be used on all major .NET runtimes and operating systems.
